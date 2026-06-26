@@ -1,5 +1,11 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+// 说明：本文件中的 useEffect 包含 setState 是必要的——
+// 1) 从 localStorage 加载初始数据必须发生在客户端，避免 SSR hydration mismatch
+// 2) 这是 mount 时的一次性副作用，不会触发 cascading renders
+// 详细原因见下方"首次加载" effect 的注释
+
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -52,12 +58,16 @@ export default function ChatPage() {
   // 当前激活的对话
   const active = conversations.find((c) => c.id === activeId) ?? null;
 
+  // 最后一条消息内容（提取到变量，避免 useEffect 依赖里有复杂表达式）
+  const lastMessageContent = active?.messages[active.messages.length - 1]?.content;
+
   // 消息变化时自动滚到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [active?.messages.length, active?.messages[active.messages.length - 1]?.content]);
+  }, [active?.messages.length, lastMessageContent]);
 
   // 首次加载：从 localStorage 恢复；没有则创建默认对话
+  // 这个 effect 是必要的：与外部系统（localStorage）同步，必须发生在客户端以避免 SSR hydration mismatch
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
