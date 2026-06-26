@@ -39,7 +39,12 @@ export async function POST(req: NextRequest) {
   }
 
   // 4. 创建 Anthropic 客户端
-  const client = new Anthropic({ apiKey });
+  // 如果配置了 ANTHROPIC_BASE_URL，则使用代理（兼容 Anthropic 协议的第三方平台，如 MiniMax）
+  // 不配置则默认调用 Anthropic 官方 API
+  const client = new Anthropic({
+    apiKey,
+    baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
+  });
 
   // 5. 创建流式响应
   const encoder = new TextEncoder();
@@ -48,7 +53,9 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       try {
         const stream = client.messages.stream({
-          model: "claude-sonnet-4-6",
+          // 模型名可通过环境变量覆盖，默认用 Claude Sonnet 4.6
+          // 第三方代理平台可能用不同的模型名，比如 MiniMax 可能是 "abab6.5s-chat"
+          model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
           max_tokens: 4096,
           system:
             system ??
